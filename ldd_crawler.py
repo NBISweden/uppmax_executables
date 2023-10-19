@@ -36,38 +36,44 @@ def ldd_checker(src_dir, output_file):
 
         for file in files:
 
-            # not needed after the executable check above?
-            _, ext = os.path.splitext(file)
-            if ext.lower() in EXCLUDED_EXTENSIONS:
-                continue
-
-            # skip non executable
-            if not is_executable_binary(os.path.join(root, file)):
-                continue
-
-            path = pathlib.Path(os.path.join(root, file))
             try:
-                deps = lddwrap.list_dependencies(path=path)
+
+                # not needed after the executable check above?
+                _, ext = os.path.splitext(file)
+                if ext.lower() in EXCLUDED_EXTENSIONS:
+                    continue
+
+                # skip non executable
+                if not is_executable_binary(os.path.join(root, file)):
+                    continue
+
+                path = pathlib.Path(os.path.join(root, file))
+                try:
+                    deps = lddwrap.list_dependencies(path=path)
+                except:
+                    pass
+                for dep in deps:
+
+                    # save missing deps
+                    if not dep.found:
+                        missing_libs.add(dep.soname)
+
+                    # save lib and software info
+                    lib_paths[dep.soname] = str(dep.path)
+
+                    try:
+                        software2lib[os.path.join(root, file)].add(dep.soname)
+                    except:
+                        software2lib[os.path.join(root, file)] = [dep.soname]
+
+                    try:
+                        lib2software[dep.soname].add(os.path.join(root, file))
+                    except:
+                        lib2software[dep.soname] = [os.path.join(root, file)]
+
             except:
                 pass
-            for dep in deps:
 
-                # save missing deps
-                if not dep.found:
-                    missing_libs.add(dep.soname)
-
-                # save lib and software info
-                lib_paths[dep.soname] = str(dep.path)
-
-                try:
-                    software2lib[os.path.join(root, file)].add(dep.soname)
-                except:
-                    software2lib[os.path.join(root, file)] = [dep.soname]
-
-                try:
-                    lib2software[dep.soname].add(os.path.join(root, file))
-                except:
-                    lib2software[dep.soname] = [os.path.join(root, file)]
     # save lists
     pickle.dump( {'lib_paths':lib_paths, 'missing_libs':missing_libs, 'software2lib':software2lib , 'lib2software':lib2software}, open( output_file, "wb" ) )
 
